@@ -21,12 +21,7 @@ jobs:
           - 3636:3636
         env:
           DS_DM_PASSWORD: admin123
-          DS_SUFFIX_NAME: dc=example,dc=com
-        options: >-
-          --health-cmd "dsctl localhost status"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 5
+          DS_SUFFIX_NAME: dc=example,dc=com 
 
     steps:
       - name: Checkout code
