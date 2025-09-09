@@ -40,14 +40,14 @@ jobs:
       - name: Wait for 389 Directory Server
         run: |
           echo "Waiting for 389 DS port to be available..."
-          timeout 30 bash -c 'until nc -z 389ds 3389; do echo "Waiting for port 3389..."; sleep 2; done'
+          timeout 30 bash -c 'until nc -z localhost 3389; do echo "Waiting for port 3389..."; sleep 2; done'
           echo "Port 3389 is open, waiting a bit more for LDAP service..."
           sleep 10
 
       - name: Provision LDAP with dummy data
         run: |
           # Create organizational units
-          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          cat << EOF | ldapadd -x -H ldap://localhost:3389 -D "cn=Directory Manager" -w admin123
           dn: ou=people,dc=example,dc=com
           objectClass: organizationalUnit
           ou: people
@@ -58,7 +58,7 @@ jobs:
           EOF
 
           # Add dummy users
-          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          cat << EOF | ldapadd -x -H ldap://localhost:3389 -D "cn=Directory Manager" -w admin123
           dn: cn=John Doe,ou=people,dc=example,dc=com
           objectClass: inetOrgPerson
           objectClass: organizationalPerson
@@ -97,7 +97,7 @@ jobs:
           EOF
 
           # Add dummy groups
-          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          cat << EOF | ldapadd -x -H ldap://localhost:3389 -D "cn=Directory Manager" -w admin123
           dn: cn=developers,ou=groups,dc=example,dc=com
           objectClass: groupOfNames
           cn: developers
@@ -115,13 +115,13 @@ jobs:
       - name: Verify LDAP data
         run: |
           echo "Verifying LDAP entries..."
-          ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn
+          ldapsearch -x -H ldap://localhost:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn
           echo "Total entries:"
-          ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn | grep -c "^dn:"
+          ldapsearch -x -H ldap://localhost:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn | grep -c "^dn:"
 
       - name: Set LDAP environment variables
         run: |
-          echo "LDAP_HOST=389ds" >> $GITHUB_ENV
+          echo "LDAP_HOST=localhost" >> $GITHUB_ENV
           echo "LDAP_PORT=3389" >> $GITHUB_ENV
           echo "LDAP_BIND_DN=cn=Directory Manager" >> $GITHUB_ENV
           echo "LDAP_BIND_PASSWORD=admin123" >> $GITHUB_ENV
