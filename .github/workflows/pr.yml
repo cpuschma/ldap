@@ -35,12 +35,14 @@ jobs:
       - name: Install LDAP utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y ldap-utils
+          sudo apt-get install -yqq ldap-utils netcat-openbsd
 
       - name: Wait for 389 Directory Server
         run: |
-          echo "Waiting for 389 DS to be ready..."
-          timeout 300 bash -c 'until ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "" -s base > /dev/null 2>&1; do sleep 5; done'
+          echo "Waiting for 389 DS port to be available..."
+          timeout 30 bash -c 'until nc -z 389ds 3389; do echo "Waiting for port 3389..."; sleep 2; done'
+          echo "Port 3389 is open, waiting a bit more for LDAP service..."
+          sleep 10
 
       - name: Provision LDAP with dummy data
         run: |
