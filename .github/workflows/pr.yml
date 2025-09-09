@@ -12,6 +12,22 @@ jobs:
         go: ["1.24", "1.23"]
         directory: ["./v3"]
     name: Go ${{ matrix.go }}.x PR Validate ${{ matrix.directory }} (Modules)
+    
+    services:
+      389ds:
+        image: quay.io/389ds/dirsrv:latest
+        ports:
+          - 3389:3389
+          - 3636:3636
+        env:
+          DS_DM_PASSWORD: admin123
+          DS_SUFFIX_NAME: dc=example,dc=com
+        options: >-
+          --health-cmd "dsctl localhost status"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,13 +37,98 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Install LDAP utilities
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ldap-utils
+
+      - name: Wait for 389 Directory Server
+        run: |
+          echo "Waiting for 389 DS to be ready..."
+          timeout 300 bash -c 'until ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "" -s base > /dev/null 2>&1; do sleep 5; done'
+
+      - name: Provision LDAP with dummy data
+        run: |
+          # Create organizational units
+          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          dn: ou=people,dc=example,dc=com
+          objectClass: organizationalUnit
+          ou: people
+          
+          dn: ou=groups,dc=example,dc=com
+          objectClass: organizationalUnit
+          ou: groups
+          EOF
+
+          # Add dummy users
+          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          dn: cn=John Doe,ou=people,dc=example,dc=com
+          objectClass: inetOrgPerson
+          objectClass: organizationalPerson
+          objectClass: person
+          objectClass: top
+          cn: John Doe
+          sn: Doe
+          givenName: John
+          mail: john.doe@example.com
+          uid: jdoe
+          userPassword: password123
+          
+          dn: cn=Jane Smith,ou=people,dc=example,dc=com
+          objectClass: inetOrgPerson
+          objectClass: organizationalPerson
+          objectClass: person
+          objectClass: top
+          cn: Jane Smith
+          sn: Smith
+          givenName: Jane
+          mail: jane.smith@example.com
+          uid: jsmith
+          userPassword: password456
+          
+          dn: cn=Bob Wilson,ou=people,dc=example,dc=com
+          objectClass: inetOrgPerson
+          objectClass: organizationalPerson
+          objectClass: person
+          objectClass: top
+          cn: Bob Wilson
+          sn: Wilson
+          givenName: Bob
+          mail: bob.wilson@example.com
+          uid: bwilson
+          userPassword: password789
+          EOF
+
+          # Add dummy groups
+          cat << EOF | ldapadd -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123
+          dn: cn=developers,ou=groups,dc=example,dc=com
+          objectClass: groupOfNames
+          cn: developers
+          description: Development team
+          member: cn=John Doe,ou=people,dc=example,dc=com
+          member: cn=Jane Smith,ou=people,dc=example,dc=com
+          
+          dn: cn=admins,ou=groups,dc=example,dc=com
+          objectClass: groupOfNames
+          cn: admins
+          description: System administrators
+          member: cn=Bob Wilson,ou=people,dc=example,dc=com
+          EOF
+
+      - name: Verify LDAP data
+        run: |
+          echo "Verifying LDAP entries..."
+          ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn
+          echo "Total entries:"
+          ldapsearch -x -H ldap://389ds:3389 -D "cn=Directory Manager" -w admin123 -b "dc=example,dc=com" "(objectClass=*)" dn | grep -c "^dn:"
+
+      - name: Set LDAP environment variables
+        run: |
+          echo "LDAP_HOST=389ds" >> $GITHUB_ENV
+          echo "LDAP_PORT=3389" >> $GITHUB_ENV
+          echo "LDAP_BIND_DN=cn=Directory Manager" >> $GITHUB_ENV
+          echo "LDAP_BIND_PASSWORD=admin123" >> $GITHUB_ENV
+          echo "LDAP_BASE_DN=dc=example,dc=com" >> $GITHUB_ENV
+
       - name: Version
         run: go version
-
-      - name: Build, Validate, and Test
-        run: |
-          cd ${{ matrix.directory }}
-          go vet .
-          go test .
-          go test -cover -race -cpu 1,2,4 .
-          go build .
