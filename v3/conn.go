@@ -249,8 +249,10 @@ func DialURL(addr string, opts ...DialOpt) (*Conn, error) {
 
 	conn := NewConn(c, u.Scheme == "ldaps")
 
-	// Save the base DN for later operations
-	conn.SetBaseDN(u.Path)
+	if u.Scheme == "ldapi" {
+		// Save the base DN for later operations
+		conn.SetBaseDN(u.Path)
+	}
 
 	conn.Start()
 	return conn, nil
