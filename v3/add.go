@@ -72,6 +72,7 @@ func (l *Conn) Add(addRequest *AddRequest) error {
 		return NewError(ErrorNetwork, errors.New("AddRequest cannot be nil"))
 	}
 
+	addRequest.DN = l.appendBase(addRequest.DN)
 	msgCtx, err := l.doRequest(addRequest)
 	if err != nil {
 		return err

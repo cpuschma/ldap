@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -110,7 +111,8 @@ type Conn struct {
 	chanMessageID       chan int64
 	wgClose             sync.WaitGroup
 	outstandingRequests uint
-	messageMutex        sync.Mutex
+	messageMutex        sync.RWMutex
+	baseDN              string
 
 	err error
 }
@@ -246,8 +248,47 @@ func DialURL(addr string, opts ...DialOpt) (*Conn, error) {
 	}
 
 	conn := NewConn(c, u.Scheme == "ldaps")
+
+	// Save the base DN for later operations
+	conn.SetBaseDN(u.Path)
+
 	conn.Start()
 	return conn, nil
+}
+
+// SetBaseDN sets the base distinguished name (DN) for LDAP operations in the connection. It is thread-safe.
+func (l *Conn) SetBaseDN(d string) {
+	l.messageMutex.Lock()
+	defer l.messageMutex.Unlock()
+	l.baseDN = d
+
+}
+
+func (l *Conn) getBaseDN() string {
+	l.messageMutex.RLock()
+	defer l.messageMutex.RUnlock()
+	return l.baseDN
+}
+
+func (l *Conn) getBaseOrDefault(d string) string {
+	baseDN := l.getBaseDN()
+	switch {
+	case baseDN != "":
+		return baseDN
+	default:
+		return d
+	}
+}
+
+func (l *Conn) appendBase(dn string) string {
+	baseDN := l.getBaseOrDefault(dn)
+
+	// Check if dn already ends with baseDN
+	if baseDN != "" && strings.HasSuffix(dn, baseDN) {
+		return dn
+	}
+
+	return baseDN + "," + dn
 }
 
 // NewConn returns a new Conn using conn for network I/O.

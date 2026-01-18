@@ -503,6 +503,7 @@ func NewSearchRequest(
 func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32) (*SearchResult, error) {
 	var pagingControl *ControlPaging
 
+	searchRequest.BaseDN = l.appendBase(searchRequest.BaseDN)
 	control := FindControl(searchRequest.Controls, ControlTypePaging)
 	if control == nil {
 		pagingControl = NewControlPaging(pagingSize)
@@ -565,6 +566,7 @@ func (l *Conn) SearchWithPaging(searchRequest *SearchRequest, pagingSize uint32)
 
 // Search performs the given search request
 func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
+	searchRequest.BaseDN = l.appendBase(searchRequest.BaseDN)
 	msgCtx, err := l.doRequest(searchRequest)
 	if err != nil {
 		return nil, err
@@ -627,6 +629,7 @@ func (l *Conn) Search(searchRequest *SearchRequest) (*SearchResult, error) {
 // To stop the search, call cancel function of the context.
 func (l *Conn) SearchAsync(
 	ctx context.Context, searchRequest *SearchRequest, bufferSize int) Response {
+	searchRequest.BaseDN = l.appendBase(searchRequest.BaseDN)
 	r := newSearchResponse(l, bufferSize)
 	r.start(ctx, searchRequest)
 	return r
@@ -640,6 +643,7 @@ func (l *Conn) Syncrepl(
 	ctx context.Context, searchRequest *SearchRequest, bufferSize int,
 	mode ControlSyncRequestMode, cookie []byte, reloadHint bool,
 ) Response {
+	searchRequest.BaseDN = l.appendBase(searchRequest.BaseDN)
 	control := NewControlSyncRequest(mode, cookie, reloadHint)
 	searchRequest.Controls = append(searchRequest.Controls, control)
 	r := newSearchResponse(l, bufferSize)

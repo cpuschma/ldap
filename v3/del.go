@@ -41,6 +41,7 @@ func (l *Conn) Del(delRequest *DelRequest) error {
 		return NewError(ErrorNetwork, errors.New("DelRequest cannot be nil"))
 	}
 
+	delRequest.DN = l.appendBase(delRequest.DN)
 	msgCtx, err := l.doRequest(delRequest)
 	if err != nil {
 		return err

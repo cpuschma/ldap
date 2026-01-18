@@ -66,6 +66,7 @@ func (l *Conn) SimpleBind(simpleBindRequest *SimpleBindRequest) (*SimpleBindResu
 		return nil, NewError(ErrorEmptyPassword, errors.New("ldap: empty password not allowed by the client"))
 	}
 
+	simpleBindRequest.Username = l.appendBase(simpleBindRequest.Username)
 	msgCtx, err := l.doRequest(simpleBindRequest)
 	if err != nil {
 		return nil, err

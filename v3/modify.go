@@ -110,6 +110,7 @@ func NewModifyRequest(dn string, controls []Control) *ModifyRequest {
 
 // Modify performs the ModifyRequest
 func (l *Conn) Modify(modifyRequest *ModifyRequest) error {
+	modifyRequest.DN = l.appendBase(modifyRequest.DN)
 	msgCtx, err := l.doRequest(modifyRequest)
 	if err != nil {
 		return err

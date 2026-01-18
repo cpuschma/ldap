@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"fmt"
+
 	ber "github.com/go-asn1-ber/asn1-ber"
 )
 
@@ -78,6 +79,10 @@ func (req *ModifyDNRequest) appendTo(envelope *ber.Packet) error {
 // ModifyDN renames the given DN and optionally move to another base (when the "newSup" argument
 // to NewModifyDNRequest() is not "").
 func (l *Conn) ModifyDN(m *ModifyDNRequest) error {
+	m.DN = l.appendBase(m.DN)
+	if m.NewSuperior != "" {
+		m.NewSuperior = l.appendBase(m.NewSuperior)
+	}
 	msgCtx, err := l.doRequest(m)
 	if err != nil {
 		return err

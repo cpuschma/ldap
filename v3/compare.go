@@ -31,6 +31,7 @@ func (req *CompareRequest) appendTo(envelope *ber.Packet) error {
 // Compare checks to see if the attribute of the dn matches value. Returns true if it does otherwise
 // false with any error that occurs if any.
 func (l *Conn) Compare(dn, attribute, value string) (bool, error) {
+	dn = l.appendBase(dn)
 	msgCtx, err := l.doRequest(&CompareRequest{
 		DN:        dn,
 		Attribute: attribute,
